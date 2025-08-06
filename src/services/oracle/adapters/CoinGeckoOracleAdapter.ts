@@ -16,6 +16,7 @@ export class CoinGeckoOracleAdapter extends OracleProviderBase {
   private readonly supportedSymbols = new Map([
     ['BTC', 'bitcoin'],
     ['ETH', 'ethereum'],
+    ['BNB', 'binancecoin'],
     ['ADA', 'cardano'],
     ['SOL', 'solana'],
     ['MATIC', 'matic-network'],
@@ -23,12 +24,18 @@ export class CoinGeckoOracleAdapter extends OracleProviderBase {
     ['DOT', 'polkadot'],
     ['LINK', 'chainlink'],
     ['AVAX', 'avalanche-2'],
-    ['ATOM', 'cosmos']
+    ['ATOM', 'cosmos'],
+    ['XRP', 'ripple'],
+    ['DOGE', 'dogecoin'],
+    ['LTC', 'litecoin']
   ]);
 
   protected async fetchData(query: string, options?: OracleQueryOptions): Promise<any> {
+    console.log(`🚀 CoinGecko fetchData called with query: "${query}"`);
     const symbol = this.extractSymbol(query);
+    console.log(`🎯 Extracted symbol: "${symbol}"`);
     const coinId = this.symbolToCoinGeckoId(symbol);
+    console.log(`🆔 CoinGecko ID: "${coinId}"`);
 
     if (!coinId) {
       throw new OracleError(
@@ -144,31 +151,68 @@ export class CoinGeckoOracleAdapter extends OracleProviderBase {
   private extractSymbol(query: string): string {
     // Extract cryptocurrency symbol from various query formats
     const upperQuery = query.toUpperCase();
+    console.log(`🔍 CoinGecko extractSymbol: "${query}" → "${upperQuery}"`);
     
-    // Direct symbol match
+    // Multiple regex patterns for better symbol extraction
+    const patterns = [
+      /\b(BTC|BITCOIN)\b/i,
+      /\b(ETH|ETHEREUM)\b/i,
+      /\b(BNB|BINANCE|BINANCECOIN)\b/i,
+      /\b(ADA|CARDANO)\b/i,
+      /\b(DOT|POLKADOT)\b/i,
+      /\b(SOL|SOLANA)\b/i,
+      /\b(MATIC|POLYGON)\b/i,
+      /\b(AVAX|AVALANCHE)\b/i,
+      /\b(ATOM|COSMOS)\b/i,
+      /\b(LINK|CHAINLINK)\b/i,
+      /\b(XRP|RIPPLE)\b/i,
+      /\b(DOGE|DOGECOIN)\b/i,
+      /\b(LTC|LITECOIN)\b/i,
+      /\b(UNI|UNISWAP)\b/i,
+      /\b(HBAR|HEDERA)\b/i,
+    ];
+    
+    // Check each pattern
+    for (const pattern of patterns) {
+      const match = query.match(pattern);
+      if (match) {
+        const token = match[1].toUpperCase();
+        console.log(`✅ Pattern matched: "${token}"`);
+        // Return the symbol (first 3-4 chars typically)
+        if (['BTC', 'BITCOIN'].includes(token)) return 'BTC';
+        if (['ETH', 'ETHEREUM'].includes(token)) return 'ETH';
+        if (['BNB', 'BINANCE', 'BINANCECOIN'].includes(token)) return 'BNB';
+        if (['ADA', 'CARDANO'].includes(token)) return 'ADA';
+        if (['DOT', 'POLKADOT'].includes(token)) return 'DOT';
+        if (['SOL', 'SOLANA'].includes(token)) return 'SOL';
+        if (['MATIC', 'POLYGON'].includes(token)) return 'MATIC';
+        if (['AVAX', 'AVALANCHE'].includes(token)) return 'AVAX';
+        if (['ATOM', 'COSMOS'].includes(token)) return 'ATOM';
+        if (['LINK', 'CHAINLINK'].includes(token)) return 'LINK';
+        if (['XRP', 'RIPPLE'].includes(token)) return 'XRP';
+        if (['DOGE', 'DOGECOIN'].includes(token)) return 'DOGE';
+        if (['LTC', 'LITECOIN'].includes(token)) return 'LTC';
+        if (['UNI', 'UNISWAP'].includes(token)) return 'UNI';
+        if (['HBAR', 'HEDERA'].includes(token)) return 'HBAR';
+      }
+    }
+
+    // Fallback: Check direct symbol match at word boundaries
     for (const [symbol] of this.supportedSymbols) {
-      if (upperQuery.includes(symbol)) {
+      const symbolRegex = new RegExp(`\\b${symbol}\\b`);
+      if (symbolRegex.test(upperQuery)) {
         return symbol;
       }
     }
 
-    // Price query format: "BTC price", "bitcoin price"
-    const priceMatch = upperQuery.match(/(\w+)\s+PRICE/);
+    // Price query format: "SYMBOL price"
+    const priceMatch = upperQuery.match(/\b(BTC|ETH|BNB|ADA|DOT|SOL|MATIC|AVAX|ATOM|LINK|XRP|DOGE|LTC|UNI)\s+(PRICE|VALUE|COST)\b/);
     if (priceMatch) {
-      const token = priceMatch[1];
-      // Check if it's a symbol or name
-      if (this.supportedSymbols.has(token)) {
-        return token;
-      }
-      // Check if it's a coin name
-      for (const [symbol, name] of this.supportedSymbols) {
-        if (name.toUpperCase().includes(token)) {
-          return symbol;
-        }
-      }
+      return priceMatch[1];
     }
 
     // Default to BTC if nothing found
+    console.log(`⚠️ No symbol found in "${query}", defaulting to BTC`);
     return 'BTC';
   }
 
